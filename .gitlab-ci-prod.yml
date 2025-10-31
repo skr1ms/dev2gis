@@ -1,0 +1,78 @@
+deploy:prod:
+  stage: deploy
+  image: alpine:3.20
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $FORCE_DEPLOY == "true"'
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH == "main" && $FORCE_BUILD_ALL == "true"'
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      changes:
+        - .gitlab-ci.yml
+        - .gitlab-ci-*.yml
+        - deployment/**/*
+        - backend/go-orchestrator/**/*
+        - backend/python-services/heightmap-service/**/*
+        - frontend/**/*
+        - Makefile
+      when: on_success
+    - when: never
+  variables:
+    DEPLOY_SERVER: $PROD_SERVER_IP
+    DEPLOY_USER: $PROD_SERVER_USER
+  before_script:
+    - apk add --no-cache git openssh-client bash ca-certificates
+    - eval "$(ssh-agent -s)"
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    - ssh-keyscan "$DEPLOY_SERVER" >> ~/.ssh/known_hosts
+  script:
+    - |
+      ssh "$DEPLOY_USER@$DEPLOY_SERVER" '
+        set -e
+        cd /root/dev2gis
+        git fetch origin main
+        git reset --hard origin/main
+      '
+    - |
+      ssh "$DEPLOY_USER@$DEPLOY_SERVER" '
+        echo "'"$CI_JOB_TOKEN"'" | docker login "'"$CI_REGISTRY"'" -u gitlab-ci-token --password-stdin
+      '
+    - |
+      ssh "$DEPLOY_USER@$DEPLOY_SERVER" '
+        set -e
+        cd /root/dev2gis
+        export IMAGE_TAG="'"$CI_COMMIT_SHA"'"
+        docker compose --env-file .env.prod -f deployment/docker/docker-compose.cicd.yml pull frontend go-orchestrator python-heightmap
+      '
+    - |
+      ssh "$DEPLOY_USER@$DEPLOY_SERVER" '
+        set -e
+        for s in frontend go-orchestrator python-heightmap; do
+          docker image inspect "'"$CI_REGISTRY_IMAGE"'/$s:'"$CI_COMMIT_SHA"'" >/dev/null 2>&1 ||
+            { echo "[ERROR] image missing: '"$CI_REGISTRY_IMAGE"'/$s:'"$CI_COMMIT_SHA"'"; exit 12; }
+        done
+      '
+    - |
+      ssh "$DEPLOY_USER@$DEPLOY_SERVER" '
+        set -e
+        cd /root/dev2gis
+        export IMAGE_TAG="'"$CI_COMMIT_SHA"'"
+        docker compose --env-file .env.prod -f deployment/docker/docker-compose.cicd.yml up -d rabbitmq
+        sleep 10
+        docker compose --env-file .env.prod -f deployment/docker/docker-compose.cicd.yml up -d frontend go-orchestrator python-heightmap
+      '
+    - |
+      ssh "$DEPLOY_USER@$DEPLOY_SERVER" '
+        cd /root/dev2gis
+        for i in $(seq 1 30); do
+          docker compose --env-file .env.prod -f deployment/docker/docker-compose.cicd.yml ps rabbitmq | grep -q "healthy" && break
+          echo "Waiting for RabbitMQ to be healthy..."
+          sleep 2
+        done
+        docker compose --env-file .env.prod -f deployment/docker/docker-compose.cicd.yml ps
+      '
+  environment:
+    name: production
+  tags: [prod]
+  allow_failure: false

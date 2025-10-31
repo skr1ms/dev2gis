@@ -1,0 +1,361 @@
+# run with: docker compose --env-file .env.prod -f deployment/docker/docker-compose.yml up --build -d
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: uav-postgres
+    expose:
+      - "5432"
+    env_file:
+      - ../../.env.prod
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:4.2-alpine
+    container_name: uav-rabbitmq
+    expose:
+      - "5672"
+      - "15672"
+      - "15692"
+    env_file:
+      - ../../.env.prod
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+      RABBITMQ_DEFAULT_VHOST: /
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: -rabbit log_levels [{connection,error},{default,error}]
+    command: >
+      sh -c "
+      rabbitmq-plugins enable rabbitmq_management rabbitmq_prometheus &&
+      rabbitmq-server
+      "
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: uav-minio
+    expose:
+      - "9000"
+      - "9001"
+    env_file:
+      - ../../.env.prod
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BROWSER_REDIRECT_URL: ${MINIO_BROWSER_REDIRECT_URL}
+      MINIO_CONSOLE_ADDRESS: ":9001"
+      MINIO_ADDRESS: ":9000"
+      MINIO_CONSOLE_SECURE_TLS_REDIRECT: "off"
+      MINIO_BROWSER_REDIRECT: "off"
+      MINIO_SITE_REPLICATION_ENABLED: ${MINIO_SITE_REPLICATION_ENABLED}
+    command: server /data --address ":9000" --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 40s
+    restart: unless-stopped
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: uav-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      until /usr/bin/mc alias set myminio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD}; do sleep 2; done;
+      /usr/bin/mc mb myminio/${MINIO_UAV_DATA_BUCKET} --ignore-existing;
+      /usr/bin/mc mb myminio/${MINIO_UAV_MODELS_BUCKET} --ignore-existing;
+      /usr/bin/mc mb myminio/${MINIO_UAV_PHOTOPLANES_BUCKET} --ignore-existing;
+      /usr/bin/mc anonymous set public myminio/${MINIO_UAV_DATA_BUCKET};
+      /usr/bin/mc anonymous set public myminio/${MINIO_UAV_MODELS_BUCKET};
+      /usr/bin/mc anonymous set public myminio/${MINIO_UAV_PHOTOPLANES_BUCKET};
+      echo 'Buckets initialized successfully';
+      exit 0;
+      "
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - MINIO_UAV_DATA_BUCKET=${MINIO_UAV_DATA_BUCKET}
+      - MINIO_UAV_MODELS_BUCKET=${MINIO_UAV_MODELS_BUCKET}
+      - MINIO_UAV_PHOTOPLANES_BUCKET=${MINIO_UAV_PHOTOPLANES_BUCKET}
+    restart: "no"
+
+  go-orchestrator:
+    build:
+      context: ../../backend/go-orchestrator
+      dockerfile: Dockerfile
+    container_name: uav-go-orchestrator
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    expose:
+      - "8080"
+    env_file:
+      - ../../.env.prod
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT}
+      ENV_FILE: /dev/null
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}
+      PORT: 8080
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_UAV_DATA_BUCKET: ${MINIO_UAV_DATA_BUCKET}
+      MINIO_UAV_MODELS_BUCKET: ${MINIO_UAV_MODELS_BUCKET}
+      MINIO_UAV_PHOTOPLANES_BUCKET: ${MINIO_UAV_PHOTOPLANES_BUCKET}
+      MINIO_BROWSER_REDIRECT_URL: ${MINIO_BROWSER_REDIRECT_URL}
+      MINIO_SITE_REPLICATION_ENABLED: ${MINIO_SITE_REPLICATION_ENABLED}
+      MINIO_USE_SSL: "false"
+      MINIO_REGION: ${MINIO_REGION}
+      FRONTEND_URL: ${NEXT_PUBLIC_API_URL}
+      ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET}
+      REFRESH_TOKEN_SECRET: ${REFRESH_TOKEN_SECRET}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL}
+      JWT_REFRESH_TTL: ${JWT_REFRESH_TTL}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      RABBITMQ_QUEUE_NAME: ${RABBITMQ_QUEUE_NAME}
+      RABBITMQ_EXCHANGE: ${RABBITMQ_EXCHANGE}
+      RABBITMQ_ROUTING_KEY: ${RABBITMQ_ROUTING_KEY}
+      RABBITMQ_CONNECTION_TIMEOUT: ${RABBITMQ_CONNECTION_TIMEOUT}
+      RABBITMQ_RECONNECT_DELAY: ${RABBITMQ_RECONNECT_DELAY}
+      LOG_LEVEL: ${LOG_LEVEL}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    stop_grace_period: 30s
+    stop_signal: SIGTERM
+    restart: unless-stopped
+
+  nodeodm:
+    image: opendronemap/nodeodm:latest
+    container_name: uav-nodeodm
+    environment:
+      - ODM_MAX_CONCURRENCY=${NODEODM_MAX_CONCURRENCY:-2}
+    expose:
+      - "3000"
+    volumes:
+      - nodeodm_data:/var/www/data
+    networks:
+      - uav-network
+    restart: unless-stopped
+
+  python-heightmap:
+    build:
+      context: ../../backend/python-services/heightmap-service
+      dockerfile: Dockerfile
+    container_name: uav-python-workers
+    depends_on:
+      minio:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      nodeodm:
+        condition: service_started
+    expose:
+      - "8000"
+    env_file:
+      - ../../.env.prod
+    environment:
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+      RABBITMQ_QUEUE_NAME: ${RABBITMQ_QUEUE_NAME}
+      RABBITMQ_PREFETCH_COUNT: ${RABBITMQ_PREFETCH_COUNT}
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_USE_SSL: "false"
+      MINIO_INPUT_BUCKET: ${MINIO_UAV_DATA_BUCKET}
+      MINIO_OUTPUT_BUCKET: ${MINIO_UAV_MODELS_BUCKET}
+      TEMP_DIR: /tmp/heightmap_processing
+      LOG_LEVEL: INFO
+      PYTHONUNBUFFERED: "1"
+      NODEODM_URL: http://nodeodm:3000
+    volumes:
+      - python-heightmap-temp:/tmp/heightmap_processing
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    stop_grace_period: 30s
+    stop_signal: SIGTERM
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+      target: ${NODE_ENV}
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_ENVIRONMENT: ${NEXT_PUBLIC_ENVIRONMENT}
+    env_file:
+      - ../../.env.prod
+    environment:
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      NEXT_PUBLIC_ENVIRONMENT: ${NEXT_PUBLIC_ENVIRONMENT}
+    expose:
+      - "3000"
+    container_name: uav-frontend
+    depends_on:
+      go-orchestrator:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped 
+
+  nginx:
+    image: nginx:latest
+    container_name: uav-nginx
+    depends_on:
+      go-orchestrator:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    ports:
+      - "81:80"
+    volumes:
+      - ../nginx/${NGINX_CONFIG}:/etc/nginx/nginx.conf:ro
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: uav-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+      - '--web.listen-address=0.0.0.0:9090'
+    expose:
+      - "9090"
+    volumes:
+      - ../../monitoring/prometheus:/etc/prometheus:ro
+      - prometheus_data:/prometheus
+    restart: unless-stopped
+
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: uav-postgres-exporter
+    env_file:
+      - ../../.env.prod
+    environment:
+      DATA_SOURCE_NAME: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+    expose:
+      - "9187"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    container_name: uav-nginx-exporter
+    command:
+      - '-nginx.scrape-uri=http://nginx:80/nginx_status'
+    expose:
+      - "9113"
+    depends_on:
+      - nginx
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: uav-grafana
+    env_file:
+      - ../../.env.prod
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=${GRAFANA_ALLOW_SIGN_UP}
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
+      - GF_SERVER_ROOT_URL=${GRAFANA_SERVER_ROOT_URL}
+    expose:
+      - "3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ../../monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../../monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+      - loki
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:latest
+    container_name: uav-loki
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    expose:
+      - "3100"
+    volumes:
+      - ../../monitoring/loki/loki.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: uav-promtail
+    command: ["-config.file=/etc/promtail/config.yml"]
+    volumes:
+      - ../../monitoring/promtail/promtail.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/log:/var/log:ro
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  minio_data:
+  rabbitmq_data:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+  python-heightmap-temp:
+  nodeodm_data:

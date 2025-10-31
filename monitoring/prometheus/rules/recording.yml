@@ -1,0 +1,35 @@
+groups:
+  - name: uav_business_metrics
+    interval: 30s
+    rules:
+      - record: uav:processing_success_rate
+        expr: |
+          rate(uav_processing_jobs_completed_total[5m]) / 
+          rate(uav_processing_jobs_total[5m])
+        labels:
+          metric_type: "business"
+
+      - record: uav:avg_processing_time_seconds
+        expr: avg(uav_processing_job_duration_seconds)
+        labels:
+          metric_type: "business"
+
+      - record: uav:error_rate
+        expr: |
+          rate(http_requests_total{status=~"5.."}[5m]) / 
+          rate(http_requests_total[5m])
+        labels:
+          metric_type: "application"
+
+  - name: database_metrics
+    interval: 60s
+    rules:
+      - record: postgres:active_connections
+        expr: pg_stat_activity_count
+        labels:
+          metric_type: "database"
+
+      - record: postgres:database_size_bytes
+        expr: pg_database_size_bytes
+        labels:
+          metric_type: "database"

@@ -1,0 +1,43 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "internal/storage/queries"
+    schema: "internal/storage/schema.sql"
+    gen:
+      go:
+        package: "sqlc"
+        out: "internal/storage/sqlc"
+        sql_package: "pgx/v5"
+        emit_json_tags: true
+        emit_prepared_queries: false
+        emit_interface: false
+        emit_exact_table_names: false
+        emit_empty_slices: false
+        emit_exported_queries: true
+        emit_result_struct_pointers: false
+        emit_params_struct_pointers: false
+        emit_methods_with_db_argument: false
+        emit_pointers_for_null_types: true
+        emit_enum_valid_method: false
+        emit_all_enum_values: false
+        overrides:
+          - column: "*.id"
+            go_type: "github.com/google/uuid.UUID"
+          - column: "*.user_id"
+            go_type: "github.com/google/uuid.UUID"
+          - column: "*.project_id"
+            go_type: "github.com/google/uuid.UUID"
+          - column: "*.created_at"
+            go_type: "time.Time"
+          - column: "*.updated_at"
+            go_type: "time.Time"
+          - column: "*.started_at"
+            go_type: "*time.Time"
+          - column: "*.completed_at"
+            go_type: "*time.Time"
+          - column: "*.metadata"
+            go_type: "github.com/lib/pq.GenericArray"
+          - column: "*.parameters"
+            go_type: "github.com/lib/pq.GenericArray"
+          - column: "*.result"
+            go_type: "github.com/lib/pq.GenericArray"
