@@ -9,6 +9,7 @@ import { Loading } from '@/components/ui/Spinner';
 import { SkeletonGrid } from '@/components/ui/Skeleton';
 import { api } from '@/utils/api';
 import { formatDate } from '@/utils/formatters';
+import { useToast } from '@/contexts/ToastContext';
 
 interface AdminStats {
   totalUsers: number;
@@ -32,10 +33,10 @@ interface RecentHeightmap {
 
 export default function AdminPage() {
   const { user, loading: authLoading, isAdmin } = useAuth(true, true);
+  const { error: showError } = useToast();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [recentMaps, setRecentMaps] = useState<RecentHeightmap[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   
   useEffect(() => {
     if (!authLoading && isAdmin) {
@@ -81,7 +82,8 @@ export default function AdminPage() {
       
       setRecentMaps(recent);
     } catch (err: any) {
-      setError(err.message || 'Не удалось загрузить данные');
+      console.error('Admin data fetch error:', err);
+      showError(err.message || 'Не удалось загрузить данные администратора');
     } finally {
       setLoading(false);
     }
@@ -101,22 +103,16 @@ export default function AdminPage() {
       <main className="flex-1 bg-gradient-surface">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="mb-8 animate-slideUp">
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">Админ панель</h1>
-            <p className="text-gray-600">Мониторинг системы и управление сервисами</p>
+            <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-2">Админ панель</h1>
+            <p className="text-gray-600 dark:text-gray-300">Мониторинг системы и управление сервисами</p>
           </div>
-          
-          {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg animate-slideDown">
-              {error}
-            </div>
-          )}
           
           {loading ? (
             <SkeletonGrid count={4} />
           ) : (
             <>
               <div className="mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">Статистика системы</h2>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Статистика системы</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <div className="animate-slideUp stagger-delay-1">
                     <StatsCard
@@ -176,7 +172,7 @@ export default function AdminPage() {
               </div>
               
               <div className="mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">Статусы задач</h2>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Статусы задач</h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <StatsCard
                     title="Завершено"
@@ -202,7 +198,7 @@ export default function AdminPage() {
               </div>
               
               <div className="mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">Внешние сервисы</h2>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Внешние сервисы</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <ServiceLinkCard
                     title="Grafana"
@@ -234,44 +230,44 @@ export default function AdminPage() {
               
               {recentMaps.length > 0 && (
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-4">Последние задачи</h2>
-                  <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">Последние задачи</h2>
+                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden transition-colors">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                      <thead className="bg-gray-50 dark:bg-gray-700">
                         <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                             ID
                           </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                             Тип
                           </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                             Статус
                           </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                             Создано
                           </th>
                         </tr>
                       </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
+                      <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                         {recentMaps.map((map) => (
-                          <tr key={map.id} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
+                          <tr key={map.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-gray-100">
                               {map.id.slice(0, 8)}...
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                               {map.type === 'batch' ? 'Пакет' : 'Одиночное'}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span
                                 className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                                   map.status === 'completed'
-                                    ? 'bg-green-100 text-green-800'
+                                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                                     : map.status === 'failed'
-                                    ? 'bg-red-100 text-red-800'
+                                    ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
                                     : map.status === 'processing'
-                                    ? 'bg-yellow-100 text-yellow-800'
-                                    : 'bg-blue-100 text-blue-800'
+                                    ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                                    : 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
                                 }`}
                               >
                                 {map.status === 'completed' ? 'Завершено' :
@@ -279,7 +275,7 @@ export default function AdminPage() {
                                  map.status === 'processing' ? 'Обработка' : 'Ожидание'}
                               </span>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                               {formatDate(map.created_at)}
                             </td>
                           </tr>

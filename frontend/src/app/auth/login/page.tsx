@@ -56,10 +56,11 @@ export default function LoginPage() {
         success('Вход выполнен успешно!');
         router.push('/upload');
       } else {
-        throw new Error('Токен не получен');
+        throw new Error('Токен не получен от сервера');
       }
     } catch (err: any) {
-      showError(err.message || 'Ошибка входа');
+      console.error('Login error:', err);
+      showError(err.message || 'Ошибка при входе в систему');
     } finally {
       setLoading(false);
     }

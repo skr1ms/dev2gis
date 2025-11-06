@@ -63,6 +63,41 @@ async function refreshAccessToken(): Promise<string> {
   return refreshPromise;
 }
 
+function extractErrorMessage(data: any, status: number): string {
+  if (data.error) {
+    return data.error;
+  }
+  if (data.message) {
+    return data.message;
+  }
+  if (data.detail) {
+    return data.detail;
+  }
+  
+  switch (status) {
+    case 400:
+      return 'Некорректные данные. Проверьте введенную информацию.';
+    case 401:
+      return 'Неверный email или пароль';
+    case 403:
+      return 'Доступ запрещен';
+    case 404:
+      return 'Ресурс не найден';
+    case 409:
+      return 'Пользователь с таким email уже существует';
+    case 422:
+      return 'Ошибка валидации данных';
+    case 429:
+      return 'Слишком много запросов. Попробуйте позже.';
+    case 500:
+      return 'Ошибка сервера. Попробуйте позже.';
+    case 503:
+      return 'Сервис временно недоступен';
+    default:
+      return `Ошибка: ${status}`;
+  }
+}
+
 export async function apiRequest<T = any>(
   url: string,
   options: RequestInit = {},
@@ -88,10 +123,18 @@ export async function apiRequest<T = any>(
       headers,
     });
     
-    const data = await response.json().catch(() => ({}));
+    let data: any = {};
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      try {
+        data = await response.json();
+      } catch (e) {
+        console.warn('Failed to parse JSON response:', e);
+      }
+    }
     
     if (!response.ok) {
-      if (response.status === 401 && retryCount === 0 && !url.includes('/auth/refresh')) {
+      if (response.status === 401 && retryCount === 0 && !url.includes('/auth/refresh') && !url.includes('/auth/login') && !url.includes('/auth/register')) {
         try {
           await refreshAccessToken();
           return apiRequest<T>(url, options, retryCount + 1);
@@ -100,10 +143,8 @@ export async function apiRequest<T = any>(
         }
       }
       
-      throw new ApiException(
-        data.error || `HTTP error! status: ${response.status}`,
-        response.status
-      );
+      const errorMessage = extractErrorMessage(data, response.status);
+      throw new ApiException(errorMessage, response.status);
     }
     
     return data as T;
@@ -111,8 +152,13 @@ export async function apiRequest<T = any>(
     if (error instanceof ApiException) {
       throw error;
     }
+    
+    if (error instanceof TypeError && error.message === 'Failed to fetch') {
+      throw new ApiException('Ошибка сети. Проверьте подключение к интернету.', 0);
+    }
+    
     throw new ApiException(
-      error instanceof Error ? error.message : 'Network error',
+      error instanceof Error ? error.message : 'Неизвестная ошибка',
       0
     );
   }

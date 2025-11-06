@@ -123,8 +123,8 @@ export default function ResultsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center justify-between mb-8 animate-slideUp">
             <div>
-              <h1 className="text-4xl font-bold text-gray-900 mb-2">Результаты обработки</h1>
-              <p className="text-gray-600">
+              <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-2">Результаты обработки</h1>
+              <p className="text-gray-600 dark:text-gray-300">
                 Всего: {stats.total} | Завершено: {stats.completed} | В обработке: {stats.processing}
               </p>
             </div>
@@ -135,9 +135,9 @@ export default function ResultsPage() {
                   type="checkbox"
                   checked={autoRefresh}
                   onChange={(e) => setAutoRefresh(e.target.checked)}
-                  className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                  className="w-4 h-4 text-indigo-600 bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 rounded focus:ring-indigo-500"
                 />
-                <span className="ml-2 text-sm text-gray-700">Автообновление</span>
+                <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Автообновление</span>
               </label>
               
               <button
@@ -162,9 +162,9 @@ export default function ResultsPage() {
           {loading ? (
             <SkeletonGrid count={6} />
           ) : filteredMaps.length === 0 ? (
-            <div className="bg-white rounded-xl shadow-lg p-12 text-center animate-slideUp">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-12 text-center animate-slideUp transition-colors">
               <svg
-                className="w-24 h-24 text-gray-400 mx-auto mb-4"
+                className="w-24 h-24 text-gray-400 dark:text-gray-500 mx-auto mb-4"
                 fill="none"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -174,8 +174,8 @@ export default function ResultsPage() {
               >
                 <path d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
               </svg>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">Результатов не найдено</h3>
-              <p className="text-gray-600 mb-6">
+              <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">Результатов не найдено</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-6">
                 {allMaps.length === 0 
                   ? 'Загрузите изображения для создания карт высот'
                   : 'Попробуйте изменить параметры фильтрации'}
@@ -202,7 +202,7 @@ export default function ResultsPage() {
           )}
 
           {filteredMaps.length > 0 && filteredMaps.length < allMaps.length && (
-            <div className="mt-6 text-center text-gray-600 animate-slideUp">
+            <div className="mt-6 text-center text-gray-600 dark:text-gray-400 animate-slideUp">
               <p>Показано {filteredMaps.length} из {allMaps.length} результатов</p>
             </div>
           )}

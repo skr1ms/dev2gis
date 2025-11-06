@@ -71,10 +71,12 @@ export default function RegisterPage() {
         success('Регистрация успешна!');
         router.push('/upload');
       } else {
-        throw new Error('Токен не получен');
+        throw new Error('Токен не получен от сервера');
       }
     } catch (err: any) {
-      showError(err.message || 'Ошибка регистрации');
+      console.error('Registration error:', err);
+      // Display the error message from the API
+      showError(err.message || 'Ошибка при регистрации');
     } finally {
       setLoading(false);
     }

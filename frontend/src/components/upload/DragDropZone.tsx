@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
+import { useToast } from '@/contexts/ToastContext';
 
 interface DragDropZoneProps {
   onFilesSelected: (files: File[]) => void;
@@ -18,6 +19,7 @@ export function DragDropZone({
   disabled = false,
 }: DragDropZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const { warning } = useToast();
   
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -46,25 +48,42 @@ export function DragDropZone({
     if (disabled) return;
     
     const files = Array.from(e.dataTransfer.files);
+    const acceptedTypes = accept.split(',').map(t => t.trim());
+    
     const validFiles = files.filter(file => {
-      const acceptedTypes = accept.split(',').map(t => t.trim());
       return acceptedTypes.some(type => file.type.match(type.replace('*', '.*')));
     });
     
+    const invalidFiles = files.length - validFiles.length;
+    if (invalidFiles > 0) {
+      warning(`Пропущено ${invalidFiles} файл(ов) с неподдерживаемым форматом`);
+    }
+    
     const filesToAdd = maxFiles ? validFiles.slice(0, maxFiles) : validFiles;
+    
+    if (maxFiles && validFiles.length > maxFiles) {
+      warning(`Выбрано слишком много файлов. Добавлено только первые ${maxFiles}`);
+    }
     
     if (filesToAdd.length > 0) {
       onFilesSelected(filesToAdd);
+    } else if (files.length > 0) {
+      warning('Нет подходящих файлов для загрузки');
     }
-  }, [accept, disabled, maxFiles, onFilesSelected]);
+  }, [accept, disabled, maxFiles, onFilesSelected, warning]);
   
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
       const filesToAdd = maxFiles ? files.slice(0, maxFiles) : files;
+      
+      if (maxFiles && files.length > maxFiles) {
+        warning(`Выбрано слишком много файлов. Добавлено только первые ${maxFiles}`);
+      }
+      
       onFilesSelected(filesToAdd);
     }
-  }, [maxFiles, onFilesSelected]);
+  }, [maxFiles, onFilesSelected, warning]);
   
   return (
     <div

@@ -46,15 +46,24 @@ export function validateFile(file: File, allowedTypes: string[], maxSizeMB: numb
   if (!file) return 'Файл не выбран';
   
   const fileType = file.type.toLowerCase();
-  const isValidType = allowedTypes.some(type => fileType.includes(type));
+  const fileName = file.name.toLowerCase();
+  const isValidType = allowedTypes.some(type => {
+    const cleanType = type.replace('image/', '').replace('/', '');
+    return fileType.includes(cleanType) || fileName.endsWith(`.${cleanType}`);
+  });
   
   if (!isValidType) {
-    return `Неподдерживаемый формат. Разрешены: ${allowedTypes.join(', ')}`;
+    const allowedExtensions = allowedTypes.map(t => t.replace('image/', '')).join(', ');
+    return `Неподдерживаемый формат файла "${file.name}". Разрешены: ${allowedExtensions}`;
   }
   
   const fileSizeMB = file.size / (1024 * 1024);
   if (fileSizeMB > maxSizeMB) {
-    return `Файл слишком большой. Максимум: ${maxSizeMB}МБ`;
+    return `Файл "${file.name}" слишком большой (${fileSizeMB.toFixed(2)}МБ). Максимум: ${maxSizeMB}МБ`;
+  }
+  
+  if (file.size === 0) {
+    return `Файл "${file.name}" пустой или поврежден`;
   }
   
   return null;
@@ -63,11 +72,20 @@ export function validateFile(file: File, allowedTypes: string[], maxSizeMB: numb
 export function validateImageFiles(files: File[]): string | null {
   if (files.length === 0) return 'Выберите хотя бы один файл';
   
-  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+  if (files.length > 50) return 'Максимум 50 файлов за один раз';
+  
+  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'jpeg', 'jpg', 'png'];
   
   for (const file of files) {
-    const error = validateFile(file, allowedTypes);
+    const error = validateFile(file, allowedTypes, 50);
     if (error) return error;
+  }
+  
+  // Check for duplicate filenames
+  const fileNames = files.map(f => f.name);
+  const duplicates = fileNames.filter((name, index) => fileNames.indexOf(name) !== index);
+  if (duplicates.length > 0) {
+    return `Обнаружены дублирующиеся имена файлов: ${duplicates.join(', ')}`;
   }
   
   return null;
@@ -77,6 +95,15 @@ export function validateBatchFiles(files: File[]): string | null {
   if (files.length < 5) return 'Для пакетной обработки требуется минимум 5 изображений';
   if (files.length > 50) return 'Максимум 50 изображений для пакетной обработки';
   
-  return validateImageFiles(files);
+  const imageValidation = validateImageFiles(files);
+  if (imageValidation) return imageValidation;
+  
+  // Calculate total size
+  const totalSizeMB = files.reduce((sum, file) => sum + file.size, 0) / (1024 * 1024);
+  if (totalSizeMB > 500) {
+    return `Общий размер файлов слишком большой (${totalSizeMB.toFixed(2)}МБ). Максимум: 500МБ`;
+  }
+  
+  return null;
 }
 

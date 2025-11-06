@@ -84,7 +84,8 @@ export default function UploadPage() {
         router.push('/results');
       }, 1500);
     } catch (error: any) {
-      showError(error.message || 'Ошибка загрузки');
+      console.error('Upload error:', error);
+      showError(error.message || 'Ошибка при загрузке изображения');
       setUploadProgress(0);
     } finally {
       setUploading(false);
@@ -141,7 +142,8 @@ export default function UploadPage() {
         router.push('/results');
       }, 1500);
     } catch (error: any) {
-      showError(error.message || 'Ошибка загрузки');
+      console.error('Batch upload error:', error);
+      showError(error.message || 'Ошибка при пакетной загрузке');
       setUploadProgress(0);
     } finally {
       setUploading(false);

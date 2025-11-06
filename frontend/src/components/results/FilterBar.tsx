@@ -25,7 +25,7 @@ export function FilterBar({
   onRefresh,
 }: FilterBarProps) {
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6 mb-6 space-y-4">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-6 space-y-4 transition-colors">
       <div className="flex flex-col md:flex-row gap-4">
         <div className="flex-1">
           <div className="relative">
@@ -34,10 +34,10 @@ export function FilterBar({
               placeholder="Поиск по ID..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 transition-colors"
             />
             <svg
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500"
               fill="none"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -54,7 +54,7 @@ export function FilterBar({
           <select
             value={sortBy}
             onChange={(e) => onSortChange(e.target.value as SortOption)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors"
           >
             <option value="newest">Сначала новые</option>
             <option value="oldest">Сначала старые</option>
@@ -64,7 +64,7 @@ export function FilterBar({
           <select
             value={statusFilter}
             onChange={(e) => onStatusFilterChange(e.target.value as StatusFilter)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors"
           >
             <option value="all">Все статусы</option>
             <option value="completed">Завершено</option>
@@ -76,11 +76,11 @@ export function FilterBar({
           {onRefresh && (
             <button
               onClick={onRefresh}
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
               title="Обновить"
             >
               <svg
-                className="w-5 h-5 text-gray-600"
+                className="w-5 h-5 text-gray-600 dark:text-gray-400"
                 fill="none"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -101,7 +101,7 @@ export function FilterBar({
           className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
             statusFilter === 'all'
               ? 'bg-indigo-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
           }`}
         >
           Все
@@ -111,7 +111,7 @@ export function FilterBar({
           className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
             statusFilter === 'completed'
               ? 'bg-green-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
           }`}
         >
           Завершено
@@ -121,7 +121,7 @@ export function FilterBar({
           className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
             statusFilter === 'processing'
               ? 'bg-yellow-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
           }`}
         >
           Обработка
@@ -131,7 +131,7 @@ export function FilterBar({
           className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
             statusFilter === 'pending'
               ? 'bg-blue-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
           }`}
         >
           Ожидание
@@ -141,7 +141,7 @@ export function FilterBar({
           className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
             statusFilter === 'failed'
               ? 'bg-red-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
           }`}
         >
           Ошибка

@@ -27,10 +27,10 @@ const toastIcons = {
 };
 
 const toastStyles = {
-  success: 'bg-green-50 border-green-200 text-green-800',
-  error: 'bg-red-50 border-red-200 text-red-800',
-  warning: 'bg-yellow-50 border-yellow-200 text-yellow-800',
-  info: 'bg-blue-50 border-blue-200 text-blue-800',
+  success: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200',
+  error: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200',
+  warning: 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200',
+  info: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200',
 };
 
 interface ToastItemProps {
@@ -40,17 +40,29 @@ interface ToastItemProps {
 function ToastItem({ toast }: ToastItemProps) {
   const { removeToast } = useToast();
   
+  React.useEffect(() => {
+    if (toast.duration && toast.duration > 0) {
+      const timer = setTimeout(() => {
+        removeToast(toast.id);
+      }, toast.duration);
+
+      return () => clearTimeout(timer);
+    }
+  }, [toast.id, toast.duration, removeToast]);
+  
   return (
     <div
-      className={`flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg ${toastStyles[toast.type]} animate-slideInRight`}
+      className={`flex items-start gap-3 px-4 py-3 rounded-lg border-2 shadow-lg ${toastStyles[toast.type]} animate-slideInRight transition-all hover:shadow-xl`}
+      role="alert"
     >
-      <div className="flex-shrink-0">
+      <div className="flex-shrink-0 pt-0.5">
         {toastIcons[toast.type]}
       </div>
-      <p className="flex-1 text-sm font-medium">{toast.message}</p>
+      <p className="flex-1 text-sm font-medium break-words">{toast.message}</p>
       <button
         onClick={() => removeToast(toast.id)}
-        className="flex-shrink-0 hover:opacity-70 transition-opacity"
+        className="flex-shrink-0 hover:opacity-70 transition-opacity p-1 rounded hover:bg-white/50 dark:hover:bg-gray-800/50"
+        aria-label="Закрыть"
       >
         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
           <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
